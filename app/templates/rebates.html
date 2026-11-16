@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}月度返利{% endblock %}
+{% block body %}
+<section class="head">
+  <h1>月度返利（整月补差 · 独立调整单）</h1>
+  <p class="meta">
+    原应收 {{ report.gross_receivable|money if report else "0.00" }} 元
+    · 返利调整 -{{ report.rebate|money if report else "0.00" }} 元
+    · 月账净值 {{ report.net_receivable|money if report else "0.00" }} 元
+  </p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>返利重算</h2>
+  <form class="cmd" data-post="/api/rebates/compute" data-target="#rebate-out" data-reload="1">
+    <button type="submit" class="btn">按整月重算返利</button>
+    <span class="dim">越档后整月补差，按票基础运费权重分摊；已发布月份将锁定拒绝重算</span>
+  </form>
+  <pre id="rebate-out" class="out">待计算</pre>
+  <p class="meta">
+    月账状态：
+    {% if report %}
+      <span class="badge {{ 'badge-ok' if report.balanced else 'badge-bad' }}">{{ "三账相等" if report.balanced else "不平" }}</span>
+      · 发布状态：<span class="badge {{ 'badge-ok' if report.published else 'badge-bad' }}">{{ "全部发布" if report.published else "含草稿" }}</span>
+    {% else %}
+      待计算
+    {% endif %}
+  </p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>月度汇总与发布</h2>
+  {% if summary %}
+  <table class="grid">
+    <thead>
+      <tr><th>承运商</th><th>自然月</th><th class="num">月基础运费</th><th>命中档区间</th>
+        <th class="num">费率</th><th class="num">月度返利</th><th class="num">票数</th>
+        <th>状态</th><th>操作</th></tr>
+    </thead>
+    <tbody>
+      {% for row in summary %}
+      <tr>
+        <td>{{ row.carrier }}</td>
+        <td class="mono">{{ row.month }}</td>
+        <td class="num">{{ row.base_total|money }}</td>
+        <td class="mono dim">[{{ row.tier_from }}, {{ row.tier_to }})</td>
+        <td class="num">{{ row.rebate_pct }}</td>
+        <td class="num strong">-{{ row.rebate_total|money }}</td>
+        <td class="num">{{ row.waybill_count }}</td>
+        <td><span class="badge {{ 'badge-ok' if row.status == 'published' else 'badge-bad' }}">{{ "已发布" if row.status == "published" else "草稿" }}</span></td>
+        <td>
+          <form class="cmd" data-post="/api/rebates/publish?carrier={{ row.carrier }}&month={{ row.month }}" data-target="#rebate-out" data-reload="1">
+            <button type="submit" class="btn">发布</button>
+            <button type="button" class="btn" data-post="/api/rebates/revoke?carrier={{ row.carrier }}&month={{ row.month }}" data-target="#rebate-out">撤回</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">还没有月度返利结果。</p>
+  {% endif %}
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>逐票返利分摊（不回改原运费）</h2>
+  {% if lines %}
+  <table class="grid">
+    <thead>
+      <tr><th>自然月</th><th>承运商</th><th>运单号</th><th class="num">票基础运费</th>
+        <th class="num">分摊权重</th><th class="num">返利分摊</th><th>尾差</th><th>标记</th></tr>
+    </thead>
+    <tbody>
+      {% for row in lines %}
+      <tr>
+        <td class="mono">{{ row.month }}</td>
+        <td>{{ row.carrier }}</td>
+        <td class="mono">{{ row.waybill_no }}</td>
+        <td class="num">{{ row.base_amount|money }}</td>
+        <td class="num">{{ row.weight_share }}</td>
+        <td class="num strong">-{{ row.rebate_amount|money }}</td>
+        <td>{{ "吸收" if row.is_absorbing else "" }}</td>
+        <td class="mono dim">{{ row.codes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">还没有返利分摊行（未越档或尚未重算）。</p>
+  {% endif %}
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>返利档位</h2>
+  {% if tiers %}
+  <table class="grid">
+    <thead><tr><th>承运商</th><th>自然月</th><th class="num">档下限</th><th class="num">档上限</th><th class="num">费率</th></tr></thead>
+    <tbody>
+      {% for tier in tiers %}
+      <tr>
+        <td>{{ tier.carrier }}</td><td class="mono">{{ tier.month }}</td>
+        <td class="num">{{ tier.tier_from|money }}</td><td class="num">{{ tier.tier_to|money }}</td>
+        <td class="num">{{ tier.rebate_pct }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">还没有档位数据。</p>
+  {% endif %}
+</section>
+{% endblock %}

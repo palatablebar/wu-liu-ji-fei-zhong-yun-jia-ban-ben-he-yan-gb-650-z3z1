@@ -12,7 +12,8 @@
 - 计费重：体积重按服务除数、取实重与体积重的较大值、按 0.5 kg 台阶向上进位
 - 分区附加：首重价 + 续重单价 × 段数、最低收费兜底、偏远固定额、燃油百分比、保价费率
 - 账单对账：运单行账、金额账、版本账、计费重账四账相等
-- 导出：账单 CSV、证据 CSV、运行清单 JSON（含 run_id 与输入 sha256）
+- 月度返利：按承运商自然月累计基础运费越档，整月补差以独立调整单按票分摊，原运费不回改；月账三账核对通过后才发布，发布锁定、重跑不重复返利
+- 导出：账单 CSV、证据 CSV、返利分摊 CSV、运行清单 JSON（含 run_id 与输入 sha256）
 
 ## 模块
 
@@ -24,7 +25,8 @@
 | M4 计费重 | 体积重与进位 | `POST /api/weights` |
 | M5 分区附加 | 分区价与附加费叠算 | `POST /api/charges` |
 | M6 账单对账 | 四账核对 | `GET /api/reconcile` |
-| M7 导出 | 账单、证据、清单 | `GET /api/export/invoice.csv` |
+| M7 导出 | 账单、证据、返利、清单 | `GET /api/export/invoice.csv` |
+| M8 月度返利 | 整月补差重算、月账对账、发布锁定 | `POST /api/rebates/compute` `GET /api/rebates/reconcile` |
 
 ## 核心规则
 
@@ -35,6 +37,9 @@
 4. 兜底：分区价低于 `min_charge` 时补差额到首重项。
 5. 附加：偏远固定额，燃油 = `(基础 + 续重) × fuel_pct`，保价 = `声明价值 × insurance_pct`。
 6. 应收：五个分项之和，先各自量化到分再相加，合计必然等于分项之和。
+7. 返利：承运商按自然月累计基础运费（基础+续重）命中档位后，整月补差 =
+   月基数 × 档费率；按票基础运费权重分摊，末票吸收尾差，返利以独立负向调整单列账，
+   不回改原运费；月账四查相等才允许发布，发布后锁定，重跑先删后插不重复返利。
 
 ## 定义与已知不覆盖
 
@@ -58,17 +63,18 @@ docker compose up -d --build
 3. 计费重页点「计算」，看 9 票体积重择用、6 票实重择用
 4. 分区附加页点「计算」，看五个分项与应收 1521.04 元
 5. 账单对账页看四账相等
-6. 导出页取账单 CSV、证据 CSV 与运行清单
+6. 月度返利页点「按整月重算返利」，看整月补差 50.22 元、月账净值 1470.82 元，月账核对通过后逐月发布
+7. 导出页取账单 CSV、证据 CSV、返利分摊 CSV 与运行清单
 
 ## 目录
 
 ```text
 app/main.py config.py errors.py reasons.py manifest.py store.py web.py
-app/modules/m1_waybill … m7_export   每个模块 handler + service + 2-3 个规则文件
-app/templates   base + 6 页
+app/modules/m1_waybill … m8_rebate   每个模块 handler + service + 2-3 个规则文件
+app/templates   base + 7 页
 app/static      theme/layout/components + 3 个 js
 docs/           DEPTH.md DATA-DICTIONARY.md RUNBOOK.md
-sample_data/    rate_cards.csv（干净）与 4 份脏运单
+sample_data/    rate_cards.csv（干净）、rebate_tiers.csv（返利档位）与 4 份脏运单
 tests/          每模块一个测试文件 + e2e + 不变量
 ```
 

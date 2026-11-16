@@ -19,12 +19,15 @@ from app.modules.m5_charges import service as charge_service
 from app.modules.m5_charges.handler import router as charges_router
 from app.modules.m6_reconcile.handler import router as reconcile_router
 from app.modules.m7_export.handler import router as export_router
+from app.modules.m8_rebate.handler import router as rebates_router
+from app.modules.m8_rebate import service as rebate_service
 
 
 def bootstrap() -> dict:
     """幂等引导：库里已有运单且阶段齐全时不重复计算。"""
     store.init_db()
     seeded = rate_service.seed_sample()
+    rebate_service.seed_sample_tiers()
     run = waybill_service.ensure_sample_run()
     run_id = run.get("run_id", "")
     if run_id:
@@ -56,6 +59,7 @@ for router in (
     charges_router,
     reconcile_router,
     export_router,
+    rebates_router,
 ):
     app.include_router(router)
 

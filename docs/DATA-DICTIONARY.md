@@ -54,3 +54,20 @@
 
 原因码只在 `app/reasons.py` 定义，分两级：`block` 表示该行不进计费，`info` 表示只做标记。
 每条隔离都带原始行号与原因码，可导出 CSV 复核。
+
+## 月度返利（M8）
+
+| 列 | 类型 | 量化 | 说明 |
+|---|---|---|---|
+| tier_from / tier_to | Decimal | 0.01 元 | 月累计基础运费的半开档区间 `[from, to)`，末档敞口到 9999999.99 |
+| rebate_pct | Decimal | 小数四位 | 命中档费率，同承运商同月份必须单调不减 |
+| base_total | Decimal | 0.01 元 | 自然月内该承运商全部计费运单的基础运费 + 续重运费合计 |
+| rebate_total | Decimal | 0.01 元 | `base_total × rebate_pct` 量化到分，整月补差 |
+| weight_share | Decimal | 0.000001 | 票基础运费 ÷ 月基数，末票吸收舍入残差，权重和恒为 1 |
+| rebate_amount | Decimal | 0.01 元 | 逐票返利分摊（负向调整），末票 = 月返利 - 已分摊之和 |
+
+- 归集口径：按 `pickup_utc` 的 UTC 自然月 `YYYY-MM` 与承运商分组，与择版同一时刻口径。
+- 返利基数只含运输性运费（基础 + 续重），不含偏远、燃油、保价等附加费。
+- 返利是独立调整单：`charge_lines` 逐笔原运费永不回改；月账净值 = 原应收合计 - 返利合计。
+- 状态机：`draft`（可重算）→ `publish`（月账三账相等才允许，发布后锁定）→ `revoke` 回草稿。
+- 重跑按 run 整体先删后插，已发布月份在发布态下拒绝重算（REBATE_PUBLISHED_LOCKED），不会重复返利。

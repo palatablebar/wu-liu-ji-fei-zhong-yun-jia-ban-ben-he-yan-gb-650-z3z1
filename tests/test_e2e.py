@@ -28,12 +28,12 @@ def test_sample_flow_end_to_end(pipeline):
 
 
 def test_web_pages_return_200(client):
-    pages = ["/", "/waybills", "/weights", "/charges", "/reconcile", "/export"]
+    pages = ["/", "/waybills", "/weights", "/charges", "/reconcile", "/rebates", "/export"]
     for page in pages:
         response = client.get(page)
         assert response.status_code == 200, page
         assert "freightrate" in response.text
-    assert len(pages) == 6
+    assert len(pages) == 7
 
 
 def test_api_health(client):
@@ -71,3 +71,54 @@ def test_quarantine_endpoints(client):
     body = client.get("/api/quarantine.csv")
     assert body.status_code == 200
     assert body.text.strip().splitlines()[0].startswith("line_no")
+
+
+def test_rebate_flow_end_to_end(client):
+    # 档位随启动种子装载
+    tiers = client.get("/api/rebates/tiers").json()["tiers"]
+    assert len(tiers) >= 10
+
+    compute = client.post("/api/rebates/compute").json()["result"]
+    assert compute["hit_months"] == 3
+    assert compute["rebate_total"] == "50.22"
+
+    # 重跑不重复返利
+    again = client.post("/api/rebates/compute").json()["result"]
+    assert again["rebate_total"] == compute["rebate_total"]
+    assert again["rebate_lines"] == compute["rebate_lines"]
+
+    report = client.get("/api/rebates/reconcile").json()["report"]
+    assert report["balanced"] is True
+    assert report["gross_receivable"] == AMOUNT_TOTAL
+    assert report["net_receivable"] == "1470.82"
+
+    # 发布后重算被 409 拒绝
+    published = client.post("/api/rebates/publish?carrier=SF&month=2026-04")
+    assert published.status_code == 200
+    locked = client.post("/api/rebates/compute")
+    assert locked.status_code == 409
+    assert locked.json()["code"] == "REBATE_PUBLISHED_LOCKED"
+
+    # 撤回后恢复可重算
+    assert client.post("/api/rebates/revoke?carrier=SF&month=2026-04").status_code == 200
+    assert client.post("/api/rebates/compute").status_code == 200
+
+
+def test_rebate_publish_requires_balanced_month(client):
+    missing = client.post("/api/rebates/publish?carrier=SF&month=2099-01")
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "REBATE_MONTH_NOT_FOUND"
+
+
+def test_rebate_csv_and_manifest_include_rebate(client):
+    client.post("/api/rebates/compute")
+    body = client.get("/api/export/rebate.csv")
+    assert body.status_code == 200
+    header = body.text.strip().splitlines()[0]
+    assert header.startswith("row_kind,carrier,month")
+    assert "allocation" in body.text and "month" in body.text
+
+    doc = json.loads(client.get("/api/export/manifest.json").text)
+    assert doc["rebate"]["rebate_total"] == "50.22"
+    assert doc["rebate"]["net_receivable"] == "1470.82"
+    assert doc["rebate"]["balanced"] is True

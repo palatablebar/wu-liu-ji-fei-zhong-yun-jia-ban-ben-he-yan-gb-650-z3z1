@@ -30,6 +30,12 @@ REASONS: dict[str, dict[str, str]] = {
     "MIN_CHARGE_APPLIED": {"label": "最低收费兜底", "level": INFO},
     "VOLUMETRIC_APPLIED": {"label": "体积重大于实重", "level": INFO},
     "ZONE_REMOTE": {"label": "偏远分区附加", "level": INFO},
+    "REBATE_TIER_HIT": {"label": "月度返利越档", "level": INFO},
+    "REBATE_RETRO_MONTH": {"label": "整月补差分摊", "level": INFO},
+    "REBATE_ROUNDING_LAST": {"label": "分摊尾差吸收到末票", "level": INFO},
+    "REBATE_TIER_GAP": {"label": "返利档位区间不连续", "level": BLOCK},
+    "REBATE_PCT_INVALID": {"label": "返利费率非法", "level": BLOCK},
+    "REBATE_PUBLISHED_LOCKED": {"label": "月度返利已发布锁定", "level": BLOCK},
 }
 
 CODES = tuple(REASONS)

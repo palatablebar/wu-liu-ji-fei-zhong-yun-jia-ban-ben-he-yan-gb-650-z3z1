@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from app import store
-from app.modules.m7_export import csv_out, invoice_out
+from app.modules.m7_export import csv_out, invoice_out, rebate_out
 
 
 def invoice_csv(run_id: str) -> str:
@@ -12,6 +11,10 @@ def invoice_csv(run_id: str) -> str:
 
 def evidence_csv(run_id: str) -> str:
     return csv_out.csv_text(run_id)
+
+
+def rebate_csv(run_id: str) -> str:
+    return rebate_out.csv_text(run_id)
 
 
 def manifest_json(run_id: str) -> str:
@@ -26,6 +29,7 @@ def overview(run_id: str) -> dict:
         "run_id": run_id,
         "invoice_rows": len(invoices),
         "evidence_rows": len(evidence),
+        "rebate_rows": len(rebate_out.rows(run_id)),
         "carriers": invoice_out.carrier_summary(run_id),
         "manifest": doc,
         "input_sha256": doc.get("input_sha256", ""),

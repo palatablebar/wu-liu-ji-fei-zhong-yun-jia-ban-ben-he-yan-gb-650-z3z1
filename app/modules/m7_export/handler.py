@@ -47,3 +47,13 @@ def api_manifest(run: str = ""):
         media_type="application/json; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="manifest.json"'},
     )
+
+
+@router.get("/api/export/rebate.csv")
+def api_rebate(run: str = ""):
+    run_id = run or store.latest_run_id()
+    return Response(
+        content=service.rebate_csv(run_id),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="rebate.csv"'},
+    )

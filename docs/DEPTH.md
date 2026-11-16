@@ -1,7 +1,7 @@
 # 深度登记 freightrate 物流计费重与运价版本核验
 
-- 规模：中型（7 个功能模块，74-80 文件区间）
-- 核心规则：按提货时刻在运价版本半开区间内择版，计费重取实重与体积重的较大值再按台阶向上进位，分区价与附加费按固定顺序叠算，分项之和必须等于应收
+- 规模：中型（8 个功能模块，80-88 文件区间）
+- 核心规则：按提货时刻在运价版本半开区间内择版，计费重取实重与体积重的较大值再按台阶向上进位，分区价与附加费按固定顺序叠算，分项之和必须等于应收；承运商按自然月累计基础运费越档返利，整月补差以独立调整单分摊，原运费不回改
 - 使用者与工作流：3PL 结算组每天收 3 家承运商的运单与月度运价表，先采信运单，再逐票算计费重与应收，最后与承运商账单对账并导出
 
 ## 功能模块
@@ -15,6 +15,7 @@
 | M5 分区附加 | 看首重、续重、偏远、燃油、保价与应收 | POST /api/charges | `app/modules/m5_charges/handler.py` `app/modules/m5_charges/service.py` `app/modules/m5_charges/zone.py` `app/modules/m5_charges/addon.py` `app/modules/m5_charges/money.py` | `tests/test_m5_charges.py` |
 | M6 账单对账 | 看四账是否相等，差在哪一项 | GET /api/reconcile | `app/modules/m6_reconcile/handler.py` `app/modules/m6_reconcile/service.py` `app/modules/m6_reconcile/compare.py` `app/modules/m6_reconcile/totals.py` `app/modules/m6_reconcile/explain.py` | `tests/test_m6_reconcile.py` |
 | M7 导出 | 导出账单、证据行与可复算的运行清单 | GET /api/export/invoice.csv | `app/modules/m7_export/handler.py` `app/modules/m7_export/service.py` `app/modules/m7_export/csv_out.py` `app/modules/m7_export/invoice_out.py` | `tests/test_m7_export.py` |
+| M8 月度返利 | 档位装载、整月补差重算、逐票分摊、月账对账与发布锁定 | POST /api/rebates/compute | `app/modules/m8_rebate/handler.py` `app/modules/m8_rebate/service.py` `app/modules/m8_rebate/engine.py` `app/modules/m8_rebate/tiers.py` | `tests/test_m8_rebate.py` |
 
 ## 陷阱登记
 
@@ -33,6 +34,10 @@
 | TRAP-24 | 各分项各自四舍五入 | 分项之和与应收差一分钱 | 分项先量化到分，应收由分项求和得出 | `app/modules/m5_charges/money.py` | `tests/test_m5_charges.py` |
 | TRAP-25 | 同分区两版生效区间相交 | 取到哪版看运气，同一票时高时低 | 先检测重叠，重叠即整份运价集拒绝装载 | `app/modules/m2_rates/version.py` | `tests/test_m2_rates.py` |
 | TRAP-26 | 用旧运价集重新提交 | 旧价覆盖新价，已出账单金额回退 | 运价集版本号比较，低于现有版本直接拒绝 | `app/modules/m2_rates/service.py` | `tests/test_m2_rates.py` |
+| TRAP-30 | 月末累计运费才越档，直接回改前半月已出账运单 | 已确认应收随越档反复变化，同一票返利和月结前后不一致 | 原运费永不回改；越档后按整月基数重算返利，以独立负向返利行按票权重分摊（整月补差） | `app/modules/m8_rebate/engine.py` `app/modules/m8_rebate/service.py` | `tests/test_m8_rebate.py` |
+| TRAP-31 | 返利逐票四舍五入后累加 | 分摊之和与月度返利差一分钱，月账对不平 | 前 N-1 票按权重量化到分，末票吸收金额尾差与权重残差，分摊和严格等于月返利 | `app/modules/m8_rebate/engine.py` | `tests/test_m8_rebate.py` |
+| TRAP-32 | 结算重跑时把返利再计提一遍 | 返利翻倍、净值虚低 | 按 run 先删后插整体重算；已发布月份锁定，重算直接 409，撤回后才可重算 | `app/modules/m8_rebate/service.py` `app/store.py` | `tests/test_m8_rebate.py` |
+| TRAP-33 | 返利档位断档或费率回退 | 某段累计金额无档可命中，或高档费率反而更低 | 档位必须从 0 起半开首尾相接、末档敞口、费率单调不减，校验失败整表拒绝 | `app/modules/m8_rebate/tiers.py` | `tests/test_m8_rebate.py` |
 
 ## 对账规则
 
@@ -40,7 +45,10 @@
 - 金额账：应收合计 = 基础运费 + 续重运费 + 偏远附加 + 燃油附加 + 保价费（Decimal，分）
 - 版本账：可计费运单 = 单选命中 + 无命中或重叠
 - 计费重账：计费行数 = 实重择用 + 体积重择用
-- 重跑：同一份输入得到同一个 run_id，行数与合计不变
+- 返利月账（逐月四查）：① 逐票分摊之和 = 月度返利；② 分摊票基数之和 = 月度基数；
+  ③ 月度返利 = 月基数 × 命中档费率；④ 分摊权重和 = 1。全部相等才允许发布
+- 月账净值：原应收合计（不回改）- 返利合计 = 净值；原应收 1521.04 与 M6 四账保持不变
+- 重跑：同一份输入得到同一个 run_id，行数与合计不变；返利按 run 先删后插，不重复计提
 
 ## 已知不覆盖
 

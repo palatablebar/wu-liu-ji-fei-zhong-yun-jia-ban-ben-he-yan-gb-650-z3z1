@@ -103,6 +103,41 @@ CREATE TABLE IF NOT EXISTS charge_lines (
   codes TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (run_id, waybill_no)
 );
+CREATE TABLE IF NOT EXISTS rebate_tiers (
+  carrier TEXT NOT NULL,
+  month TEXT NOT NULL,
+  tier_from TEXT NOT NULL,
+  tier_to TEXT NOT NULL,
+  rebate_pct TEXT NOT NULL,
+  PRIMARY KEY (carrier, month, tier_from)
+);
+CREATE TABLE IF NOT EXISTS rebate_months (
+  run_id TEXT NOT NULL,
+  carrier TEXT NOT NULL,
+  month TEXT NOT NULL,
+  base_total TEXT NOT NULL DEFAULT '0.00',
+  tier_from TEXT NOT NULL DEFAULT '0.00',
+  tier_to TEXT NOT NULL DEFAULT '0.00',
+  rebate_pct TEXT NOT NULL DEFAULT '0.0000',
+  rebate_total TEXT NOT NULL DEFAULT '0.00',
+  waybill_count INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft',
+  digest TEXT NOT NULL DEFAULT '',
+  published_at TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (run_id, carrier, month)
+);
+CREATE TABLE IF NOT EXISTS rebate_lines (
+  run_id TEXT NOT NULL,
+  carrier TEXT NOT NULL,
+  month TEXT NOT NULL,
+  waybill_no TEXT NOT NULL,
+  base_amount TEXT NOT NULL DEFAULT '0.00',
+  weight_share TEXT NOT NULL DEFAULT '0.000000',
+  rebate_amount TEXT NOT NULL DEFAULT '0.00',
+  is_absorbing INTEGER NOT NULL DEFAULT 0,
+  codes TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (run_id, carrier, month, waybill_no)
+);
 """
 
 
@@ -332,3 +367,108 @@ def charge_lines(run_id: str) -> list[dict]:
 def latest_run_id() -> str:
     got = one("SELECT run_id FROM runs ORDER BY created_at DESC, run_id DESC LIMIT 1")
     return got["run_id"] if got else ""
+
+
+# --- 返利档位 / 月度返利 / 分摊行 ------------------------------------------
+
+TIER_COLUMNS = ("carrier", "month", "tier_from", "tier_to", "rebate_pct")
+
+
+def replace_rebate_tiers(rows_in: list[dict]) -> None:
+    """整表替换档位：档位是主数据，一次装载覆盖全量。"""
+    with session() as conn:
+        conn.execute("DELETE FROM rebate_tiers")
+        conn.executemany(
+            f"INSERT INTO rebate_tiers ({', '.join(TIER_COLUMNS)}) "
+            f"VALUES ({', '.join('?' for _ in TIER_COLUMNS)})",
+            [tuple(row[c] for c in TIER_COLUMNS) for row in rows_in],
+        )
+
+
+def rebate_tiers(carrier: str = "", month: str = "") -> list[dict]:
+    sql = "SELECT * FROM rebate_tiers"
+    clauses: list[str] = []
+    params: list = []
+    if carrier:
+        clauses.append("carrier = ?")
+        params.append(carrier)
+    if month:
+        clauses.append("month = ?")
+        params.append(month)
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY carrier, month, tier_from"
+    return rows(sql, tuple(params))
+
+
+def replace_rebate_months(run_id: str, rows_in: list[dict]) -> None:
+    with session() as conn:
+        conn.execute("DELETE FROM rebate_months WHERE run_id = ?", (run_id,))
+        conn.executemany(
+            "INSERT INTO rebate_months (run_id, carrier, month, base_total, tier_from, tier_to, "
+            "rebate_pct, rebate_total, waybill_count, status, digest, published_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    run_id, row["carrier"], row["month"], row["base_total"],
+                    row["tier_from"], row["tier_to"], row["rebate_pct"],
+                    row["rebate_total"], int(row["waybill_count"]),
+                    row["status"], row["digest"], row.get("published_at", ""),
+                )
+                for row in rows_in
+            ],
+        )
+
+
+def rebate_months(run_id: str) -> list[dict]:
+    return rows(
+        "SELECT * FROM rebate_months WHERE run_id = ? ORDER BY month, carrier", (run_id,)
+    )
+
+
+def rebate_month(run_id: str, carrier: str, month: str) -> dict | None:
+    return one(
+        "SELECT * FROM rebate_months WHERE run_id = ? AND carrier = ? AND month = ?",
+        (run_id, carrier, month),
+    )
+
+
+def set_rebate_month_status(run_id: str, carrier: str, month: str,
+                            status: str, published_at: str = "") -> None:
+    execute(
+        "UPDATE rebate_months SET status = ?, published_at = ? "
+        "WHERE run_id = ? AND carrier = ? AND month = ?",
+        (status, published_at, run_id, carrier, month),
+    )
+
+
+def replace_rebate_lines(run_id: str, rows_in: list[dict]) -> None:
+    """按运行整体重算返利分摊：先删后插，重跑不会叠加（幂等关键）。"""
+    with session() as conn:
+        conn.execute("DELETE FROM rebate_lines WHERE run_id = ?", (run_id,))
+        conn.executemany(
+            "INSERT INTO rebate_lines (run_id, carrier, month, waybill_no, base_amount, "
+            "weight_share, rebate_amount, is_absorbing, codes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    run_id, row["carrier"], row["month"], row["waybill_no"],
+                    row["base_amount"], row["weight_share"], row["rebate_amount"],
+                    int(row["is_absorbing"]), row.get("codes", ""),
+                )
+                for row in rows_in
+            ],
+        )
+
+
+def rebate_lines(run_id: str, carrier: str = "", month: str = "") -> list[dict]:
+    sql = "SELECT * FROM rebate_lines WHERE run_id = ?"
+    params: list = [run_id]
+    if carrier:
+        sql += " AND carrier = ?"
+        params.append(carrier)
+    if month:
+        sql += " AND month = ?"
+        params.append(month)
+    sql += " ORDER BY month, carrier, waybill_no"
+    return rows(sql, tuple(params))

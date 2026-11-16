@@ -98,6 +98,11 @@ DISPLAY_TZ = "Asia/Shanghai"
 
 SAMPLE_RATES = "rate_cards.csv"
 SAMPLE_RATES_OVERLAP = "rate_cards_overlap.csv"
+SAMPLE_REBATE_TIERS = "rebate_tiers.csv"
 SAMPLE_WAYBILLS = "waybills_dirty.csv"
 SAMPLE_WAYBILLS_GB = "waybills_gb18030.csv"
 SAMPLE_WAYBILLS_TRUNC = "waybills_truncated.csv"
+
+# 返利：自然月累计基础运费的越档判定门槛（金额，元）与分摊尾差吸收规则
+REBATE_BASE_FIELDS = ("base_amount", "step_amount")
+REBATE_OPEN_TIER_TO = Decimal("9999999.99")

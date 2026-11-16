@@ -10,6 +10,7 @@ from decimal import Decimal
 from app import config, manifest, store
 from app.modules.m6_reconcile import service as reconcile_service
 from app.modules.m7_export import csv_out
+from app.modules.m8_rebate import service as rebate_service
 
 INVOICE_HEADER = [
     "waybill_no", "carrier", "service", "zone", "pickup_utc", "billable_kg",
@@ -83,6 +84,7 @@ def carrier_summary(run_id: str) -> list[dict]:
 def manifest_doc(run_id: str) -> dict:
     run = store.get_run(run_id) or {}
     report = reconcile_service.reconcile(run_id)
+    rebate_report = rebate_service.reconcile_run(run_id)
     doc = manifest.build(run, {
         "rows": {
             "input": int(run.get("rows_in") or 0),
@@ -92,6 +94,13 @@ def manifest_doc(run_id: str) -> dict:
         "amount": {
             "total": report["total"],
             "conserved": report["conserved"],
+        },
+        "rebate": {
+            "gross_receivable": rebate_report["gross_receivable"],
+            "rebate_total": rebate_report["rebate_total"],
+            "net_receivable": rebate_report["net_receivable"],
+            "balanced": rebate_report["balanced"],
+            "published": rebate_report["published"],
         },
         "reconcile": report["verdict"],
         "rate_set_version": store.max_rate_set_version(),
