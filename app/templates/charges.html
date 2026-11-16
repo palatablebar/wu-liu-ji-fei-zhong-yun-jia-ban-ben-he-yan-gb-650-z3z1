@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}分区附加{% endblock %}
+{% block body %}
+<section class="head">
+  <h1>分区附加</h1>
+  <p class="meta">账单行 {{ amounts.count or 0 }} · 应收 {{ amounts.total|money }} 元</p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <form class="cmd" data-post="/api/charges" data-target="#charges-out" data-reload="1">
+    <button type="submit" class="btn">计算</button>
+    <span class="dim">叠加顺序 基础 → 续重 → 偏远 → 燃油 → 保价</span>
+  </form>
+  <pre id="charges-out" class="out">待计算</pre>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+{% if amounts %}
+<section class="block">
+  <h2>分项合计</h2>
+  <dl class="ledger">
+    <div><dt>基础运费</dt><dd class="num">{{ amounts.parts.base|money }}</dd></div>
+    <div><dt>续重运费</dt><dd class="num">{{ amounts.parts.step|money }}</dd></div>
+    <div><dt>偏远附加</dt><dd class="num">{{ amounts.parts.remote|money }}</dd></div>
+    <div><dt>燃油附加</dt><dd class="num">{{ amounts.parts.fuel|money }}</dd></div>
+    <div><dt>保价费</dt><dd class="num">{{ amounts.parts.insurance|money }}</dd></div>
+    <div class="sum"><dt>应收合计</dt><dd class="num">{{ amounts.total|money }}</dd></div>
+  </dl>
+  <div class="stack" data-stack='{{ {"基础": amounts.parts.base, "续重": amounts.parts.step, "偏远": amounts.parts.remote, "燃油": amounts.parts.fuel, "保价": amounts.parts.insurance} | tojson(0) }}'></div>
+  <p class="meta">分项之和与应收{{ "相等" if amounts.conserved else "不等" }}</p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+{% endif %}
+
+<section class="block">
+  <h2>逐票账单</h2>
+  {% if lines %}
+  <table class="grid">
+    <thead>
+      <tr><th>运单号</th><th class="num">基础</th><th class="num">续重</th><th class="num">偏远</th>
+        <th class="num">燃油</th><th class="num">保价</th><th class="num">应收</th><th>版本</th><th>标记</th></tr>
+    </thead>
+    <tbody>
+      {% for row in lines %}
+      <tr>
+        <td class="mono">{{ row.waybill_no }}</td>
+        <td class="num">{{ row.base_amount|money }}</td>
+        <td class="num">{{ row.step_amount|money }}</td>
+        <td class="num">{{ row.remote_amount|money }}</td>
+        <td class="num">{{ row.fuel_amount|money }}</td>
+        <td class="num">{{ row.insurance_amount|money }}</td>
+        <td class="num strong">{{ row.total_amount|money }}</td>
+        <td class="mono dim">{{ row.version_id }}</td>
+        <td class="mono dim">{{ row.codes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">还没有账单行。</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,33 @@
+/* L7 终端手册：纸白底、全等宽、零圆角、无阴影。只有变量。 */
+:root {
+  --bg: #f9f9f6;
+  --paper: #f9f9f6;
+  --paper-2: #f2f2ec;
+  --paper-3: #e8e8df;
+  --ink: #1c2530;
+  --ink-soft: #3a4655;
+  --ink-muted: #6d7885;
+  --line: #d5d5cb;
+  --line-soft: #e4e4da;
+  --line-strong: #334155;
+  --accent: #334155;
+  --accent-soft: #556579;
+  --accent-ink: #f9f9f6;
+  --ok: #2c6b4a;
+  --warn: #8a6410;
+  --bad: #8c3227;
+  --info: #3a5570;
+  --font-ui: "SFMono-Regular", "Menlo", "Consolas", "DejaVu Sans Mono", "Noto Sans Mono CJK SC", monospace;
+  --font-num: "SFMono-Regular", "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
+  --font-doc: "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --mono: "SFMono-Regular", "Menlo", "Consolas", "DejaVu Sans Mono", "Noto Sans Mono CJK SC", monospace;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --pad: 10px;
+  --pad-lg: 18px;
+  --gap: 14px;
+  --row: 26px;
+  --rule: 1px solid var(--line);
+  --shadow: none;
+  --ease: 120ms;
+}

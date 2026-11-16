@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}导出{% endblock %}
+{% block body %}
+<section class="head">
+  <h1>导出</h1>
+  <p class="meta">账单 {{ overview.invoice_rows or 0 }} 行 · 证据 {{ overview.evidence_rows or 0 }} 行 · 应收 {{ overview.amount_total|money }} 元</p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>文件</h2>
+  <ul class="links">
+    <li><a href="/api/export/invoice.csv">账单 CSV</a><span class="dim mono">invoice.csv</span></li>
+    <li><a href="/api/export/evidence.csv">证据 CSV</a><span class="dim mono">evidence.csv</span></li>
+    <li><a href="/api/export/manifest.json">运行清单</a><span class="dim mono">manifest.json</span></li>
+    <li><a href="/api/quarantine.csv">隔离证据 CSV</a><span class="dim mono">quarantine.csv</span></li>
+  </ul>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>按载体汇总</h2>
+  {% if overview.carriers %}
+  <table class="grid">
+    <thead><tr><th>载体</th><th class="num">票数</th><th class="num">应收</th><th>币种</th></tr></thead>
+    <tbody>
+      {% for row in overview.carriers %}
+      <tr>
+        <td>{{ row.carrier }}</td>
+        <td class="num">{{ row.count }}</td>
+        <td class="num">{{ row.total }}</td>
+        <td>{{ row.currency }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">还没有账单。</p>
+  {% endif %}
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>清单</h2>
+  <pre class="out mono">{{ overview.manifest | tojson(indent=2) if overview.manifest else "待生成" }}</pre>
+</section>
+{% endblock %}

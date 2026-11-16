@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}运价核验{% endblock %} · freightrate</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/layout.css">
+  <link rel="stylesheet" href="/static/components.css">
+</head>
+<body>
+<header class="strip">
+  <div class="strip-line">
+    <span class="brand">freightrate</span>
+    <span class="tick">::</span>
+    <span class="dim">计费重与运价版本</span>
+    <span class="grow"></span>
+    <span class="kv"><i>批次</i><b>{{ run_id or "未运行" }}</b></span>
+    <span class="kv"><i>规则</i><b>{{ rules_version }}</b></span>
+    <span class="kv"><i>生成</i><b>{{ generated_at }}</b></span>
+    <span class="kv"><i>时区</i><b>{{ display_tz }}</b></span>
+  </div>
+  <div class="rule-line">{{ rule(200) }}</div>
+  <nav class="tabs">
+    <a href="/" class="{{ 'on' if active == 'rates' }}">运价手册</a>
+    <a href="/waybills" class="{{ 'on' if active == 'waybills' }}">运单</a>
+    <a href="/weights" class="{{ 'on' if active == 'weights' }}">计费重</a>
+    <a href="/charges" class="{{ 'on' if active == 'charges' }}">分区附加</a>
+    <a href="/reconcile" class="{{ 'on' if active == 'reconcile' }}">账单对账</a>
+    <a href="/export" class="{{ 'on' if active == 'export' }}">导出</a>
+  </nav>
+</header>
+
+<main id="main">
+{% block body %}{% endblock %}
+</main>
+
+<footer class="foot">
+  <div class="rule-line">{{ rule(200) }}</div>
+  <span class="dim">freightrate · {{ rules_version }} · {{ display_tz }}</span>
+</footer>
+
+<script src="/static/table.js" defer></script>
+<script src="/static/charts.js" defer></script>
+<script src="/static/app.js" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

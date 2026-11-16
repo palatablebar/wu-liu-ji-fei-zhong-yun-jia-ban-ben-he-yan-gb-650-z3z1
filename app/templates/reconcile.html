@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}账单对账{% endblock %}
+{% block body %}
+<section class="head">
+  <h1>账单对账</h1>
+  <p class="meta">
+    应收 {{ report.total|money }} 元 · 四账{{ "相等" if report.verdict.balanced else "不平" }}
+    · 采信 {{ report.rows_in or 0 }} 行
+  </p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+{% if report.accounts %}
+{% for account in report.accounts %}
+<section class="block account {{ 'ok' if account.balanced else 'bad' }}">
+  <h2>{{ account.title }}</h2>
+  <div class="account-line">
+    <span class="account-left">{{ account.left_label }}</span>
+    <span class="num strong">{{ account.left_value|money if account.unit == "元" else account.left_value }}</span>
+    <span class="tick">=</span>
+    {% for part in account.parts %}
+      <span class="chip">{{ part.label }} <b class="num">{{ part.value|money if account.unit == "元" else part.value }}</b></span>
+      {% if not loop.last %}<span class="tick">+</span>{% endif %}
+    {% endfor %}
+    <span class="tick">→</span>
+    <span class="num">{{ account.right_value|money if account.unit == "元" else account.right_value }}</span>
+    <span class="badge {{ 'badge-ok' if account.balanced else 'badge-bad' }}">{{ "平" if account.balanced else "差" }}</span>
+  </div>
+  <p class="meta mono">{{ account.note }}{% if not account.balanced %} · 差额 {{ account.delta }}{% endif %}</p>
+</section>
+{% endfor %}
+{% else %}
+<p class="empty">还没有对账结果。</p>
+{% endif %}
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>导出入口</h2>
+  <p class="meta"><a href="/api/export/invoice.csv">账单 CSV</a> · <a href="/api/export/evidence.csv">证据 CSV</a> · <a href="/api/export/manifest.json">运行清单</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,4 @@
+waybill_no,carrier,service,zone,pickup_date,weight,weight_unit,length,width,height,dim_unit,declared_value,pieces
+WB-3001,SF,standard,Z1,2026-04-05T09:00:00+08:00,1200,g,30,20,10,cm,0,1
+WB-3002,SF,standard,Z1,2026-04-05T10:00:00+08:00,2,kg,30,20
+WB-3003,SF,standard,Z1,2026-04-05T11:00:00+08:00,1.5,kg,30

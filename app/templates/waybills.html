@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}运单{% endblock %}
+{% block body %}
+<section class="head">
+  <h1>运单</h1>
+  <p class="meta">记录 {{ run.rows_in or 0 }} · 计费 {{ run.rows_ok or 0 }} · 隔离 {{ run.rows_quarantined or 0 }}</p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>采信</h2>
+  <form class="cmd" data-post="/api/waybills/import" data-target="#import-out" data-reload="1">
+    <label class="field"><span>样例</span>
+      <select name="sample">
+        <option value="{{ samples.waybills }}">{{ samples.waybills }}</option>
+        <option value="{{ samples.gb }}">{{ samples.gb }}</option>
+        <option value="{{ samples.trunc }}">{{ samples.trunc }}</option>
+      </select>
+    </label>
+    <label class="field"><span>文件</span><input type="file" name="file" accept=".csv"></label>
+    <button type="submit" class="btn">导入</button>
+  </form>
+  <pre id="import-out" class="out">待导入</pre>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>隔离原因</h2>
+  {% if distribution %}
+  <div class="bars" data-bars="distribution">
+    {% for bucket in distribution %}
+    <div class="bar-row">
+      <span class="bar-code mono">{{ bucket.code }}</span>
+      <span class="bar-label">{{ bucket.label }}</span>
+      <span class="bar-track"><span class="bar-fill level-{{ bucket.level }}" data-count="{{ bucket.count }}"></span></span>
+      <span class="num">{{ bucket.count }}</span>
+      <span class="mono dim">{{ bucket.lines_text }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="meta"><a href="/api/quarantine.csv">隔离证据 CSV</a></p>
+  {% else %}
+  <p class="empty">没有隔离行。</p>
+  {% endif %}
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>计费运单</h2>
+  {% if waybills %}
+  <table class="grid">
+    <thead>
+      <tr><th class="num">行</th><th>运单号</th><th>载体</th><th>服务</th><th>分区</th>
+        <th>提货 UTC</th><th class="num">实重 kg</th><th class="num">长</th><th class="num">宽</th>
+        <th class="num">高</th><th class="num">声明价值</th><th>标记</th></tr>
+    </thead>
+    <tbody>
+      {% for row in waybills %}
+      <tr>
+        <td class="num">{{ row.line_no }}</td>
+        <td class="mono">{{ row.waybill_no }}</td>
+        <td>{{ row.carrier }}</td>
+        <td>{{ row.service }}</td>
+        <td>{{ row.zone }}</td>
+        <td class="mono">{{ row.pickup_utc }}</td>
+        <td class="num">{{ row.weight_kg|kg }}</td>
+        <td class="num">{{ row.length_cm|kg }}</td>
+        <td class="num">{{ row.width_cm|kg }}</td>
+        <td class="num">{{ row.height_cm|kg }}</td>
+        <td class="num">{{ row.declared_value|money }}</td>
+        <td class="mono dim">{{ row.codes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">还没有计费运单。</p>
+  {% endif %}
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>隔离行</h2>
+  {% if quarantine %}
+  <table class="grid">
+    <thead><tr><th class="num">行</th><th>运单号</th><th>原因码</th><th>明细</th><th>原值</th></tr></thead>
+    <tbody>
+      {% for row in quarantine %}
+      <tr class="flag-bad">
+        <td class="num">{{ row.line_no }}</td>
+        <td class="mono">{{ row.waybill_no or "—" }}</td>
+        <td class="mono">{{ row.code }}</td>
+        <td class="mono dim">{{ row.detail }}</td>
+        <td class="raw">{{ row.raw }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">没有隔离行。</p>
+  {% endif %}
+</section>
+{% endblock %}

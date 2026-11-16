@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}运价手册{% endblock %}
+{% block body %}
+<section class="head">
+  <h1>运价手册</h1>
+  <p class="meta">运价集 v{{ rate_set_version }} · {{ card_count }} 行 · {{ coverage|length }} 个组合 · 重叠 {{ overlaps|length }}</p>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>校验运价文件</h2>
+  <form class="cmd" data-post="/api/rates/audit" data-target="#audit-out">
+    <label class="field"><span>样例</span>
+      <select name="sample">
+        <option value="{{ samples.overlap }}">{{ samples.overlap }}</option>
+        <option value="{{ samples.rates }}">{{ samples.rates }}</option>
+      </select>
+    </label>
+    <label class="field"><span>文件</span><input type="file" name="file" accept=".csv"></label>
+    <button type="submit" class="btn">校验</button>
+    <button type="button" class="btn btn-ghost" data-post="/api/rates/import" data-target="#audit-out">装载</button>
+  </form>
+  <pre id="audit-out" class="out">待校验</pre>
+</section>
+
+<div class="rule-line">{{ rule(200) }}</div>
+
+<section class="block">
+  <h2>版本窗口</h2>
+  <table class="grid" data-filter="1" data-table="coverage">
+    <thead>
+      <tr>
+        <th>载体</th><th>服务</th><th>分区</th><th>版本</th>
+        <th>生效起</th><th>生效止</th><th class="num">首重价</th><th class="num">续重价</th>
+        <th class="num">最低收费</th><th class="num">除数</th><th class="num">燃油</th>
+        <th class="num">偏远</th><th class="num">保价率</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in coverage %}
+        {% for card in group.versions %}
+        <tr>
+          <td>{{ card.carrier }}</td>
+          <td>{{ card.service }}</td>
+          <td>{{ card.zone }}</td>
+          <td class="mono">{{ card.version_id }}</td>
+          <td class="mono">{{ card.effective_from|local }}</td>
+          <td class="mono">{{ card.effective_to|local }}</td>
+          <td class="num">{{ card.first_price|money }}</td>
+          <td class="num">{{ card.step_price|money }}</td>
+          <td class="num">{{ card.min_charge|money }}</td>
+          <td class="num">{{ card.volume_divisor }}</td>
+          <td class="num">{{ card.fuel_pct }}</td>
+          <td class="num">{{ card.remote_fee|money }}</td>
+          <td class="num">{{ card.insurance_pct }}</td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="block">
+  <h2>生效区间重叠</h2>
+  {% if overlaps %}
+  <table class="grid">
+    <thead><tr><th>载体</th><th>服务</th><th>分区</th><th>版本</th><th>相交区间</th><th>原因码</th></tr></thead>
+    <tbody>
+      {% for item in overlaps %}
+      <tr class="flag-bad">
+        <td>{{ item.carrier }}</td><td>{{ item.service }}</td><td>{{ item.zone }}</td>
+        <td class="mono">{{ item.left }} / {{ item.right }}</td>
+        <td class="mono">{{ item.from }} → {{ item.to }}</td>
+        <td class="mono">{{ item.code }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">没有重叠版本。</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "18209:8000"
+    environment:
+      FREIGHTRATE_DATA: /app/data
+      FREIGHTRATE_DB: /app/data/freightrate.db
+      FREIGHTRATE_SAMPLE: /app/sample_data
+      TZ: Asia/Shanghai
+    volumes:
+      - freightrate-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  freightrate-data:
